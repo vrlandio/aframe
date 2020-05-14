@@ -11,7 +11,7 @@ var VIVE_CONTROLLER_MODEL_OBJ_MTL = 'https://cdn.aframe.io/controllers/vive/vr_c
 
 var isWebXRAvailable = require('../utils/').device.isWebXRAvailable;
 
-var GAMEPAD_ID_WEBXR = 'htc-vive';
+var GAMEPAD_ID_WEBXR = 'htc-vive-controller-mv';
 var GAMEPAD_ID_WEBVR = 'OpenVR ';
 
 // Prefix for Gen1 and Gen2 Oculus Touch Controllers.
@@ -45,7 +45,7 @@ var INPUT_MAPPING_WEBVR = {
  */
 var INPUT_MAPPING_WEBXR = {
   axes: {thumbstick: [0, 1]},
-  buttons: ['trigger', 'squeeze', 'touchpad', 'none', 'menu']
+  buttons: ['trigger', 'grip', 'trackpad', 'none', 'menu']
 };
 
 var INPUT_MAPPING = isWebXRAvailable ? INPUT_MAPPING_WEBXR : INPUT_MAPPING_WEBVR;
@@ -80,6 +80,11 @@ module.exports.Component = registerComponent('vive-controls', {
     this.rendererSystem = this.el.sceneEl.systems.renderer;
 
     this.bindMethods();
+  },
+
+  update: function () {
+    var data = this.data;
+    this.controllerIndex = data.hand === 'right' ? 0 : data.hand === 'left' ? 1 : 2;
   },
 
   play: function () {
@@ -132,8 +137,7 @@ module.exports.Component = registerComponent('vive-controls', {
    */
   checkIfControllerPresent: function () {
     var data = this.data;
-    var controllerIndex = data.hand === 'right' ? 0 : data.hand === 'left' ? 1 : 2;
-    checkControllerPresentAndSetup(this, GAMEPAD_ID_PREFIX, {index: controllerIndex});
+    checkControllerPresentAndSetup(this, GAMEPAD_ID_PREFIX, {index: this.controllerIndex, hand: data.hand});
   },
 
   injectTrackedControls: function () {
@@ -143,8 +147,8 @@ module.exports.Component = registerComponent('vive-controls', {
     // If we have an OpenVR Gamepad, use the fixed mapping.
     el.setAttribute('tracked-controls', {
       idPrefix: GAMEPAD_ID_PREFIX,
-      // Hand IDs: 1 = right, 0 = left, 2 = anything else.
-      controller: data.hand === 'right' ? 1 : data.hand === 'left' ? 0 : 2,
+      hand: data.hand,
+      controller: this.controllerIndex,
       orientationOffset: data.orientationOffset
     });
 

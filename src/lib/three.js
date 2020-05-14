@@ -1,4 +1,4 @@
-var THREE = global.THREE = require('super-three');
+var THREE = global.THREE = require('three');
 
 // Allow cross-origin images to be loaded.
 
@@ -19,14 +19,27 @@ if (THREE.Cache) {
 }
 
 // TODO: Eventually include these only if they are needed by a component.
-require('super-three/examples/js/loaders/DRACOLoader');  // THREE.DRACOLoader
-require('super-three/examples/js/loaders/GLTFLoader');  // THREE.GLTFLoader
-require('super-three/examples/js/loaders/OBJLoader');  // THREE.OBJLoader
-require('super-three/examples/js/loaders/MTLLoader');  // THREE.MTLLoader
+require( "../../vendor/DeviceOrientationControls" ); // THREE.DeviceOrientationControls
+require( "three/examples/js/loaders/DRACOLoader" ); // THREE.DRACOLoader
+require( "three/examples/js/loaders/GLTFLoader" ); // THREE.GLTFLoader
+//require( "super-three/examples/js/loaders/OBJLoader" ); // THREE.OBJLoader
+//require( "super-three/examples/js/loaders/MTLLoader" ); // THREE.MTLLoader
+require( "three/examples/js/loaders/BasisTextureLoader" ); // THREE.BasisTextureLoader
 
-THREE.DRACOLoader.prototype.crossOrigin = 'anonymous';
-THREE.GLTFLoader.prototype.crossOrigin = 'anonymous';
-THREE.MTLLoader.prototype.crossOrigin = 'anonymous';
-THREE.OBJLoader.prototype.crossOrigin = 'anonymous';
+require( "three/examples/js/objects/Reflector.js" );
+
+require( "three/examples/js/controls/OrbitControls.js" );
+require( "three/examples/js/utils/BufferGeometryUtils.js" );
+//require( "super-three/examples/js/modifiers/SubdivisionModifier.js" );
+//require( "super-three/examples/js/modifiers/SimplifyModifier.js" );
+require( "three/examples/js/exporters/GLTFExporter.js" );
+require( "three/examples/js/math/ConvexHull.js")
+require( "three/examples/js/geometries/ConvexGeometry.js")
+
+
+THREE.DRACOLoader.prototype.crossOrigin = "anonymous";
+THREE.GLTFLoader.prototype.crossOrigin = "anonymous";
+//THREE.MTLLoader.prototype.crossOrigin = "anonymous";
+//THREE.OBJLoader.prototype.crossOrigin = "anonymous";
 
 module.exports = THREE;

@@ -13,7 +13,9 @@ var EVENTS = {
 module.exports.Component = registerComponent('tracked-controls-webxr', {
   schema: {
     id: {type: 'string', default: ''},
-    hand: {type: 'string', default: ''}
+    hand: {type: 'string', default: ''},
+    index: {type: 'int', default: -1},
+    iterateControllerProfiles: {default: false}
   },
 
   init: function () {
@@ -28,6 +30,10 @@ module.exports.Component = registerComponent('tracked-controls-webxr', {
     this.axis = this.el.components['tracked-controls'].axis = [0, 0, 0];
     this.changedAxes = [];
     this.axisMoveEventDetail = {axis: this.axis, changed: this.changedAxes};
+  },
+
+  update: function () {
+    this.updateController();
   },
 
   play: function () {
@@ -55,13 +61,22 @@ module.exports.Component = registerComponent('tracked-controls-webxr', {
   removeSessionEventListeners: function () {
     var sceneEl = this.el.sceneEl;
     if (!sceneEl.xrSession) { return; }
-    sceneEl.xrSession.addEventListener('selectstart', this.emitButtonDownEvent);
-    sceneEl.xrSession.addEventListener('selectend', this.emitButtonUpEvent);
+    sceneEl.xrSession.removeEventListener('selectstart', this.emitButtonDownEvent);
+    sceneEl.xrSession.removeEventListener('selectend', this.emitButtonUpEvent);
+  },
+
+  isControllerPresent: function (evt) {
+    if (!this.controller || this.controller.gamepad) { return false; }
+    if (evt.inputSource.handedness !== 'none' &&
+        evt.inputSource.handedness !== this.data.hand) {
+      return false;
+    }
+    return true;
   },
 
   emitButtonDownEvent: function (evt) {
-    if (!this.controller || evt.inputSource.handedness !== this.data.hand) { return; }
-    if (this.controller.gamepad) { return; }
+    if (!this.isControllerPresent(evt)) { return; }
+
     this.selectEventDetails.state.pressed = true;
     this.el.emit('buttondown', this.selectEventDetails);
     this.el.emit('buttonchanged', this.selectEventDetails);
@@ -69,8 +84,8 @@ module.exports.Component = registerComponent('tracked-controls-webxr', {
   },
 
   emitButtonUpEvent: function (evt) {
-    if (!this.controller || evt.inputSource.handedness !== this.data.hand) { return; }
-    if (this.controller.gamepad) { return; }
+    if (!this.isControllerPresent(evt)) { return; }
+
     this.selectEventDetails.state.pressed = false;
     this.el.emit('buttonup', this.selectEventDetails);
     this.el.emit('buttonchanged', this.selectEventDetails);
@@ -84,7 +99,9 @@ module.exports.Component = registerComponent('tracked-controls-webxr', {
     this.controller = controllerUtils.findMatchingControllerWebXR(
       this.system.controllers,
       this.data.id,
-      this.data.hand
+      this.data.hand,
+      this.data.index,
+      this.data.iterateControllerProfiles
     );
     // Legacy handle to the controller for old components.
     this.el.components['tracked-controls'].controller = this.controller;
@@ -94,7 +111,7 @@ module.exports.Component = registerComponent('tracked-controls-webxr', {
 
   tick: function () {
     var sceneEl = this.el.sceneEl;
-    if (!this.controller || !sceneEl.frame) { return; }
+    if (!this.controller || !sceneEl.frame || !this.system.referenceSpace) { return; }
     this.pose = sceneEl.frame.getPose(this.controller.targetRaySpace, this.system.referenceSpace);
     this.updatePose();
     this.updateButtons();
@@ -167,14 +184,14 @@ module.exports.Component = registerComponent('tracked-controls-webxr', {
     var changedAxes = this.changedAxes;
 
     // Check if axis changed.
-    this.changedAxes.length = 0;
+    this.changedAxes.splice(0, this.changedAxes.length);
     for (i = 0; i < controllerAxes.length; ++i) {
       changedAxes.push(previousAxis[i] !== controllerAxes[i]);
       if (changedAxes[i]) { changed = true; }
     }
     if (!changed) { return false; }
 
-    this.axis.length = 0;
+    this.axis.splice(0, this.axis.length);
     for (i = 0; i < controllerAxes.length; i++) {
       this.axis.push(controllerAxes[i]);
     }

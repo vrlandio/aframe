@@ -7,6 +7,7 @@ var scenes = require('./scenes');
 var systems = require('../system').systems;
 var THREE = require('../../lib/three');
 var utils = require('../../utils/');
+var shaders = require('../shader').shaders;
 // Require after.
 var AEntity = require('../a-entity');
 var ANode = require('../a-node');
@@ -50,6 +51,7 @@ module.exports.AScene = registerElement('a-scene', {
           // THREE may swap the camera used for the rendering if in VR, so we pass it to tock
           if (self.isPlaying) { self.tock(self.time, self.delta, camera); }
         };
+        this.resize = bind(this.resize, this);
         this.render = bind(this.render, this);
         this.systems = {};
         this.systemNames = [];
@@ -124,6 +126,7 @@ module.exports.AScene = registerElement('a-scene', {
                                   this.pointerUnrestrictedBound);
         }
 
+        window.addEventListener('sessionend', this.resize);
         // Camera set up by camera system.
         this.addEventListener('cameraready', function () {
           self.attachedCallbackPostCamera();
@@ -138,7 +141,6 @@ module.exports.AScene = registerElement('a-scene', {
         var resize;
         var self = this;
 
-        resize = bind(this.resize, this);
         window.addEventListener('load', resize);
         window.addEventListener('resize', function () {
           // Workaround for a Webkit bug (https://bugs.webkit.org/show_bug.cgi?id=170595)
@@ -147,9 +149,9 @@ module.exports.AScene = registerElement('a-scene', {
           // is postponed a few milliseconds.
           // self.resize can be called directly once the bug above is fixed.
           if (self.isIOS) {
-            setTimeout(resize, 100);
+            setTimeout(self.resize, 100);
           } else {
-            resize();
+            self.resize();
           }
         });
         this.play();
@@ -204,6 +206,7 @@ module.exports.AScene = registerElement('a-scene', {
         window.removeEventListener('vrdisplaydisconnect', this.exitVRTrueBound);
         window.removeEventListener('vrdisplaypointerrestricted', this.pointerRestrictedBound);
         window.removeEventListener('vrdisplaypointerunrestricted', this.pointerUnrestrictedBound);
+        window.removeEventListener('sessionend', this.resize);
       }
     },
 
@@ -275,27 +278,27 @@ module.exports.AScene = registerElement('a-scene', {
 
         // Has VR.
         if (this.checkHeadsetConnected() || this.isMobile) {
-          vrDisplay = utils.device.getVRDisplay();
           vrManager.enabled = true;
-          vrManager.setDevice(vrDisplay);
 
           if (this.hasWebXR) {
             // XR API.
             if (this.xrSession) {
               this.xrSession.removeEventListener('end', this.exitVRBound);
             }
-            navigator.xr.requestSession(useAR ? 'immersive-ar' : 'immersive-vr', {
-              requiredFeatures: ['local-floor'],
-              optionalFeatures: ['bounded-floor']
-            }).then(function requestSuccess (xrSession) {
-              self.xrSession = xrSession;
-              vrManager.setSession(xrSession);
-              xrSession.addEventListener('end', self.exitVRBound);
-              if (useAR) {
-                self.addState('ar-mode');
-              }
-              enterVRSuccess();
-            });
+            var refspace = this.sceneEl.systems.webxr.sessionReferenceSpaceType;
+            vrManager.setReferenceSpaceType(refspace);
+            var xrMode = useAR ? 'immersive-ar' : 'immersive-vr';
+            var xrInit = this.sceneEl.systems.webxr.sessionConfiguration;
+            navigator.xr.requestSession(xrMode, xrInit).then(
+                function requestSuccess (xrSession) {
+                  self.xrSession = xrSession;
+                  vrManager.setSession(xrSession);
+                  xrSession.addEventListener('end', self.exitVRBound);
+                  if (useAR) {
+                    self.addState('ar-mode');
+                  }
+                  enterVRSuccess();
+                });
           } else {
             vrDisplay = utils.device.getVRDisplay();
             vrManager.setDevice(vrDisplay);
@@ -335,8 +338,7 @@ module.exports.AScene = registerElement('a-scene', {
             window.dispatchEvent(event);
           }
 
-          self.addState('vr-mode');
-          self.emit('enter-vr', {target: self});
+       
           // Lock to landscape orientation on mobile.
           if (!isWebXRAvailable && self.isMobile && screen.orientation && screen.orientation.lock) {
             screen.orientation.lock('landscape');
@@ -347,10 +349,16 @@ module.exports.AScene = registerElement('a-scene', {
           // TODO: 07/16 Chromium builds break when `requestFullscreen`ing on a canvas
           // that we are also `requestPresent`ing. Until then, don't fullscreen if headset
           // connected.
+        
           if (!self.isMobile && !self.checkHeadsetConnected()) {
             requestFullscreen(self.canvas);
-          }
+          
+        } else {
 
+          self.addState( "vr-mode" );
+          self.emit( "enter-vr", { target: self } );
+
+        }
           self.renderer.setAnimationLoop(self.render);
           self.resize();
         }
@@ -386,7 +394,8 @@ module.exports.AScene = registerElement('a-scene', {
           vrDisplay = utils.device.getVRDisplay();
           if (this.hasWebXR) {
             this.xrSession.removeEventListener('end', this.exitVRBound);
-            this.xrSession.end();
+            // Capture promise to avoid errors.
+            this.xrSession.end().then(function () {}, function () {});
             this.xrSession = undefined;
             vrManager.setSession(null);
           } else {
@@ -412,6 +421,7 @@ module.exports.AScene = registerElement('a-scene', {
           }
           // Exiting VR in embedded mode, no longer need fullscreen styles.
           if (self.hasAttribute('embedded')) { self.removeFullScreenStyles(); }
+
           self.resize();
           if (self.isIOS) { utils.forceCanvasResizeSafariMobile(self.canvas); }
           self.renderer.setPixelRatio(window.devicePixelRatio);
@@ -552,8 +562,7 @@ module.exports.AScene = registerElement('a-scene', {
         var embedded;
         var isVRPresenting;
         var size;
-
-        var isPresenting = this.renderer.xr.isPresenting();
+        var isPresenting = this.renderer.xr.isPresenting;
         isVRPresenting = this.renderer.xr.enabled && isPresenting;
 
         // Do not update renderer, if a camera or a canvas have not been injected.
@@ -590,7 +599,8 @@ module.exports.AScene = registerElement('a-scene', {
           alpha: true,
           antialias: !isMobile,
           canvas: this.canvas,
-          logarithmicDepthBuffer: false
+          logarithmicDepthBuffer: false,
+          powerPreference: 'high-performance'
         };
 
         this.maxCanvasSize = {height: 1920, width: 1920};
@@ -615,6 +625,80 @@ module.exports.AScene = registerElement('a-scene', {
             rendererConfig.alpha = rendererAttr.alpha === 'true';
           }
 
+          if (rendererAttr.webgl2 && rendererAttr.webgl2 === 'true') {
+            const context = this.canvas.getContext('webgl2', {
+              alpha: rendererConfig.alpha,
+              depth: true,
+              stencil: true,
+              antialias: rendererConfig.antialias,
+              premultipliedAlpha: true,
+              preserveDrawingBuffer: false,
+              powerPreference: 'high-performance',
+              xrCompatible: true
+            });
+
+            if (context) {
+              console.log('Using WebGL 2.0 context.');
+              rendererConfig.context = context;
+
+             
+              var versionRegex = /^\s*#version\s+300\s+es\s*\n/;
+
+              for (var shaderName in shaders) {
+                var shader = shaders[shaderName];
+
+                var shaderProto = shader.Shader.prototype;
+
+                if (!shaderProto.raw) {
+                  continue;
+                }
+
+                var vertexShader = shaderProto.vertexShader;
+                var fragmentShader = shaderProto.fragmentShader;
+
+                var isGLSL3ShaderMaterial = false;
+
+                if (vertexShader.match(versionRegex) !== null && fragmentShader.match(versionRegex) !== null) {
+                  isGLSL3ShaderMaterial = true;
+
+                  vertexShader = vertexShader.replace(versionRegex, '');
+                  fragmentShader = fragmentShader.replace(versionRegex, '');
+                }
+
+                // GLSL 3.0 conversion
+                const prefixVertex = [
+                  '#version 300 es\n',
+                  '#define attribute in',
+                  '#define varying out',
+                  '#define texture2D texture'
+                ].join('\n') + '\n';
+
+                const prefixFragment = [
+                  '#version 300 es\n',
+                  '#define varying in',
+                  isGLSL3ShaderMaterial ? '' : 'out highp vec4 pc_fragColor;',
+                  isGLSL3ShaderMaterial ? '' : '#define gl_FragColor pc_fragColor',
+                  '#define gl_FragDepthEXT gl_FragDepth',
+                  '#define texture2D texture',
+                  '#define textureCube texture',
+                  '#define texture2DProj textureProj',
+                  '#define texture2DLodEXT textureLod',
+                  '#define texture2DProjLodEXT textureProjLod',
+                  '#define textureCubeLodEXT textureLod',
+                  '#define texture2DGradEXT textureGrad',
+                  '#define texture2DProjGradEXT textureProjGrad',
+                  '#define textureCubeGradEXT textureGrad'
+                ].join('\n') + '\n';
+
+                shaderProto.vertexShader = prefixVertex + vertexShader;
+                shaderProto.fragmentShader = prefixFragment + fragmentShader;
+              }
+            } else {
+              console.warn('No WebGL 2.0 context available. Falling back to WebGL 1.0');
+             
+            }
+          }
+
           this.maxCanvasSize = {
             width: rendererAttr.maxCanvasWidth
               ? parseInt(rendererAttr.maxCanvasWidth)
@@ -628,10 +712,13 @@ module.exports.AScene = registerElement('a-scene', {
         renderer = this.renderer = new THREE.WebGLRenderer(rendererConfig);
         renderer.setPixelRatio(window.devicePixelRatio);
         renderer.sortObjects = false;
-        if (this.camera) { renderer.xr.setPoseTarget(this.camera.el.object3D); }
-        this.addEventListener('camera-set-active', function () {
+        if (this.camera && !this.hasWebXR) { renderer.xr.setPoseTarget(this.camera.el.object3D); }
+        this.addEventListener('camera-set-active', function () 
+        {
+          if (!this.hasWebXR)
           renderer.xr.setPoseTarget(self.camera.el.object3D);
         });
+      
         loadingScreen.setup(this, getCanvasSize);
       },
       writable: window.debug
@@ -656,6 +743,13 @@ module.exports.AScene = registerElement('a-scene', {
           var vrDisplay;
           var vrManager = this.renderer.xr;
           AEntity.prototype.play.call(this);  // .play() *before* render.
+
+
+          // WebXR Immersive navigation handler.
+          if (this.hasWebXR && navigator.xr.addEventListener) {
+              navigator.xr.addEventListener('sessiongranted', function () { sceneEl.enterVR(); });
+          }
+  
 
           if (sceneEl.renderStarted) { return; }
           sceneEl.resize();

@@ -8,8 +8,10 @@ var supportsARSession = false;
  * Oculus Browser 7 doesn't support the WebXR gamepads module.
  * We fallback to WebVR API and will hotfix when implementation is complete.
  */
-var isWebXRAvailable = module.exports.isWebXRAvailable = !window.debug && !isOculusBrowser() && navigator.xr !== undefined;
 
+//var isWebXRAvailable = module.exports.isWebXRAvailable = !window.debug && navigator.xr !== undefined && !"getVRDisplays" in navigator;
+
+var isWebXRAvailable =  module.exports.isWebXRAvailable = !window.debug && "getVRDisplays" in navigator === false && navigator.xr !== undefined;
 // Catch vrdisplayactivate early to ensure we can enter VR mode after the scene loads.
 window.addEventListener('vrdisplayactivate', function (evt) {
   var canvasEl;
@@ -28,6 +30,10 @@ window.addEventListener('vrdisplayactivate', function (evt) {
 if (isWebXRAvailable) {
   var updateEnterInterfaces = function () {
     var sceneEl = document.querySelector('a-scene');
+    if (!sceneEl) {
+      window.addEventListener('DOMContentLoaded', updateEnterInterfaces);
+      return;
+    }
     if (sceneEl.hasLoaded) {
       sceneEl.components['vr-mode-ui'].updateEnterInterfaces();
     } else {
@@ -47,7 +53,7 @@ if (isWebXRAvailable) {
     navigator.xr.isSessionSupported('immersive-ar').then(function (supported) {
       supportsARSession = supported;
       updateEnterInterfaces();
-    }).catch(errorHandler);
+    }).catch(function () {});
   } else if (navigator.xr.supportsSession) {
     // Fallback for implementations that haven't updated to the new spec yet,
     // the old version used supportsSession which is rejected for missing
@@ -59,7 +65,7 @@ if (isWebXRAvailable) {
     navigator.xr.supportsSession('immersive-ar').then(function () {
       supportsARSession = true;
       updateEnterInterfaces();
-    }).catch(errorHandler);
+    }).catch(function () {});
   } else {
     error('WebXR has neither isSessionSupported or supportsSession?!');
   }
@@ -182,26 +188,3 @@ module.exports.isBrowserEnvironment = !!(!process || process.browser);
  * Check if running in node on the server.
  */
 module.exports.isNodeEnvironment = !module.exports.isBrowserEnvironment;
-
-/**
- * Update an Object3D pose if a polyfilled vrDisplay is present.
- */
-module.exports.PolyfillControls = function PolyfillControls (object) {
-  var frameData;
-  var vrDisplay = window.webvrpolyfill && window.webvrpolyfill.getPolyfillDisplays()[0];
-  if (window.VRFrameData) { frameData = new window.VRFrameData(); }
-  this.update = function () {
-    var pose;
-    if (!vrDisplay) { return; }
-    vrDisplay.getFrameData(frameData);
-    pose = frameData.pose;
-    if (pose.orientation !== null) {
-      object.quaternion.fromArray(pose.orientation);
-    }
-    if (pose.position !== null) {
-      object.position.fromArray(pose.position);
-    } else {
-      object.position.set(0, 0, 0);
-    }
-  };
-};
