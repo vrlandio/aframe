@@ -365,11 +365,14 @@ function createVideoEl (src, width, height) {
   videoEl.setAttribute('webkit-playsinline', '');
   videoEl.autoplay = true;
   videoEl.loop = true;
+  videoEl.muted = true;
+  videoEl.preload = "auto";
   videoEl.crossOrigin = 'anonymous';
   videoEl.addEventListener('error', function () {
     warn('`$s` is not a valid video', src);
   }, true);
   videoEl.src = src;
+  videoEl.play();
   return videoEl;
 }
 
