@@ -594,8 +594,8 @@ module.exports.AScene = registerElement('a-scene', {
         var rendererAttr;
         var rendererAttrString;
         var rendererConfig;
-        this.canvas.addEventListener('webglcontextlost', function() {});
-        this.canvas.addEventListener('webglcontextrestored', function() {});
+        this.canvas.addEventListener('webglcontextlost', function() {}, false);
+        this.canvas.addEventListener('webglcontextrestored', function() {}, false);
         rendererConfig = {
           alpha: true,
           antialias: !isMobile,
