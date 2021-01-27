@@ -87,6 +87,6 @@ if (ls && (parseInt(ls.logs, 10) || ls.logs === 'true')) {
   debug.enable('*:error,*:info,*:warn');
 }
 
-if (process.browser) { window.logs = debug; }
+ window.logs = debug; 
 
 module.exports = debug;

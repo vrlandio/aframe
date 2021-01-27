@@ -182,7 +182,7 @@ module.exports.isLandscape = function () {
  * `window` is mocked in node.
  * `process` is also mocked by browserify, but has custom properties.
  */
-module.exports.isBrowserEnvironment = !!(!process || process.browser);
+module.exports.isBrowserEnvironment =  true; //!!(!process || process.browser);
 
 /**
  * Check if running in node on the server.

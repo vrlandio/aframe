@@ -130,8 +130,8 @@ function incrementCacheCount (cacheCount, hash) {
 function toBufferGeometry (geometry, doBuffer) {
   var bufferGeometry;
   if (!doBuffer) { return geometry; }
-
-  bufferGeometry = new THREE.BufferGeometry().fromGeometry(geometry);
+  bufferGeometry = geometry;
+  //bufferGeometry = new THREE.BufferGeometry().fromGeometry(geometry);
   bufferGeometry.metadata = {type: geometry.type, parameters: geometry.parameters || {}};
   geometry.dispose();  // Dispose no longer needed non-buffer geometry.
   return bufferGeometry;
