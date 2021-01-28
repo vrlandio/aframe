@@ -6351,8 +6351,6 @@ module.exports={
     "ghpages": "ghpages -p gh-pages/",
     "lint": "semistandard -v | snazzy",
     "lint:fix": "semistandard --fix",
-    "precommit": "npm run lint",
-    "prepush": "node scripts/testOnlyCheck.js",
     "prerelease": "node scripts/release.js 1.0.3 1.0.4",
     "start": "npm run dev",
     "start:https": "cross-env SSL=true npm run dev",
@@ -13181,8 +13179,8 @@ module.exports.Component = registerComponent('sound', {
     }
 
     if (!found) {
-      warn('All the sounds are playing. If you need to play more sounds simultaneously ' +
-           'consider increasing the size of pool with the `poolSize` attribute.', this.el);
+    //  warn('All the sounds are playing. If you need to play more sounds simultaneously ' +
+    //       'consider increasing the size of pool with the `poolSize` attribute.', this.el);
       return;
     }
 
@@ -18953,7 +18951,7 @@ module.exports.AScene = registerElement('a-scene', {
      * @param {bool?} useAR - if true, try immersive-ar mode
      * @returns {Promise}
      */
-    enterVR: {
+     enterVR:{
       value: function (useAR) {
         var self = this;
         var vrDisplay;
@@ -18976,14 +18974,15 @@ module.exports.AScene = registerElement('a-scene', {
             var xrMode = useAR ? 'immersive-ar' : 'immersive-vr';
             var xrInit = this.sceneEl.systems.webxr.sessionConfiguration;
             navigator.xr.requestSession(xrMode, xrInit).then(
-                function requestSuccess (xrSession) {
+               async function requestSuccess (xrSession) {
                   self.xrSession = xrSession;
-                  vrManager.setSession(xrSession);
+                 
+                  await vrManager.setSession( xrSession );
                   xrSession.addEventListener('end', self.exitVRBound);
                   if (useAR) {
                     self.addState('ar-mode');
                   }
-                  enterVRSuccess();
+                 enterVRSuccess();
                 });
           } else {
             vrDisplay = utils.device.getVRDisplay();
@@ -19066,7 +19065,7 @@ module.exports.AScene = registerElement('a-scene', {
      * @returns {Promise}
      */
     exitVR: {
-      value: function () {
+      value: async function () {
         var self = this;
         var vrDisplay;
         var vrManager = this.renderer.xr;
@@ -19083,7 +19082,7 @@ module.exports.AScene = registerElement('a-scene', {
             // Capture promise to avoid errors.
             this.xrSession.end().then(function () {}, function () {});
             this.xrSession = undefined;
-            vrManager.setSession(null);
+            await vrManager.setSession(null);
           } else {
             if (vrDisplay.isPresenting) {
               return vrDisplay.exitPresent().then(exitVRSuccess, exitVRFailure);
@@ -21502,7 +21501,7 @@ require('./core/a-mixin');
 require('./extras/components/');
 require('./extras/primitives/');
 
-/*console.log('A-Frame Version: 1.0.4 (Date 2021-01-27, Commit #265757af)');
+/*console.log('A-Frame Version: 1.0.4 (Date 2021-01-28, Commit #02c32733)');
 console.log('THREE Version (https://github.com/supermedium/three.js):',
             pkg.dependencies['super-three']);
 console.log('WebVR Polyfill Version:', pkg.dependencies['webvr-polyfill']);
@@ -32098,6 +32097,9 @@ module.exports = getWakeLock();
 				value: new Matrix3()
 			}
 		});
+		this._positionCache = new Vector3();
+		this._quaternionCache = new Quaternion();
+		this._scaleCache = new Vector3().copy(scale);
 		this.matrix = new Matrix4();
 		this.matrixWorld = new Matrix4();
 		this.matrixAutoUpdate = Object3D.DefaultMatrixAutoUpdate;
@@ -32381,8 +32383,16 @@ module.exports = getWakeLock();
 			}
 		},
 		updateMatrix: function updateMatrix() {
-			this.matrix.compose(this.position, this.quaternion, this.scale);
-			this.matrixWorldNeedsUpdate = true;
+			if (!this._positionCache.equals(this.position) || !this._quaternionCache.equals(this.quaternion) || !this._scaleCache.equals(this.scale)) {
+				this.matrix.compose(this.position, this.quaternion, this.scale);
+				this.matrixWorldNeedsUpdate = true;
+
+				this._positionCache.copy(this.position);
+
+				this._quaternionCache.copy(this.quaternion);
+
+				this._scaleCache.copy(this.scale);
+			}
 		},
 		updateMatrixWorld: function updateMatrixWorld(force) {
 			if (this.matrixAutoUpdate) this.updateMatrix();
@@ -43356,6 +43366,10 @@ module.exports = getWakeLock();
 			}
 
 			return controller.getTargetRaySpace();
+		};
+
+		this.getCameraPose = function () {
+			return pose;
 		};
 
 		this.getControllerGrip = function (index) {

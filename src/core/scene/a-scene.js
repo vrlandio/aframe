@@ -267,7 +267,7 @@ module.exports.AScene = registerElement('a-scene', {
      * @param {bool?} useAR - if true, try immersive-ar mode
      * @returns {Promise}
      */
-    enterVR: {
+     enterVR:{
       value: function (useAR) {
         var self = this;
         var vrDisplay;
@@ -290,14 +290,15 @@ module.exports.AScene = registerElement('a-scene', {
             var xrMode = useAR ? 'immersive-ar' : 'immersive-vr';
             var xrInit = this.sceneEl.systems.webxr.sessionConfiguration;
             navigator.xr.requestSession(xrMode, xrInit).then(
-                function requestSuccess (xrSession) {
+               async function requestSuccess (xrSession) {
                   self.xrSession = xrSession;
-                  vrManager.setSession(xrSession);
+                 
+                  await vrManager.setSession( xrSession );
                   xrSession.addEventListener('end', self.exitVRBound);
                   if (useAR) {
                     self.addState('ar-mode');
                   }
-                  enterVRSuccess();
+                 enterVRSuccess();
                 });
           } else {
             vrDisplay = utils.device.getVRDisplay();
@@ -380,7 +381,7 @@ module.exports.AScene = registerElement('a-scene', {
      * @returns {Promise}
      */
     exitVR: {
-      value: function () {
+      value: async function () {
         var self = this;
         var vrDisplay;
         var vrManager = this.renderer.xr;
@@ -397,7 +398,7 @@ module.exports.AScene = registerElement('a-scene', {
             // Capture promise to avoid errors.
             this.xrSession.end().then(function () {}, function () {});
             this.xrSession = undefined;
-            vrManager.setSession(null);
+            await vrManager.setSession(null);
           } else {
             if (vrDisplay.isPresenting) {
               return vrDisplay.exitPresent().then(exitVRSuccess, exitVRFailure);
