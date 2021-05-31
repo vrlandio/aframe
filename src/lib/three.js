@@ -14,9 +14,10 @@ if (THREE.ImageLoader) {
 }
 
 // In-memory caching for XHRs (for images, audio files, textures, etc.).
-if (THREE.Cache) {
-  THREE.Cache.enabled = true;
-}
+
+//if (THREE.Cache) {
+//  THREE.Cache.enabled = true;
+//}
 
 // TODO: Eventually include these only if they are needed by a component.
 require( "../../vendor/DeviceOrientationControls" ); // THREE.DeviceOrientationControls

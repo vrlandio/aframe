@@ -583,6 +583,9 @@ module.exports.AScene = registerElement('a-scene', {
 
         // Notify renderer of size change.
         this.renderer.setSize(size.width, size.height, false);
+
+        //const sizeTarget = this.renderer.getDrawingBufferSize(new THREE.Vector2());
+       // this.renderTarget.setSize(sizeTarget.width, sizeTarget.height);
         this.emit('rendererresize', null, false);
       },
       writable: true
@@ -602,7 +605,8 @@ module.exports.AScene = registerElement('a-scene', {
           antialias: !isMobile,
           canvas: this.canvas,
           logarithmicDepthBuffer: false,
-          powerPreference: 'high-performance'
+          powerPreference: 'high-performance',
+         // logarithmicDepthBuffer: true,
         };
 
         this.maxCanvasSize = {height: 1920, width: 1920};
@@ -636,7 +640,8 @@ module.exports.AScene = registerElement('a-scene', {
               premultipliedAlpha: true,
               preserveDrawingBuffer: false,
               powerPreference: 'high-performance',
-              xrCompatible: true
+              xrCompatible: true,
+              logarithmicDepthBuffer: rendererConfig.logarithmicDepthBuffer
             });
 
             if (context) {
@@ -712,8 +717,40 @@ module.exports.AScene = registerElement('a-scene', {
         }
 
         renderer = this.renderer = new THREE.WebGLRenderer(rendererConfig);
+//        const width = window.innerWidth;
+//        const height = window.innerHeight;
+//        renderer.setSize(width, height);
+       
+        
         renderer.setPixelRatio(window.devicePixelRatio);
+  /*      renderer.outputEncoding = THREE.sRGBEncoding;
+        renderer.autoClear = true;
         renderer.sortObjects = false;
+        var parameters = {
+					format: THREE.RGBFormat,
+			minFilter: THREE.LinearFilter,
+			magFilter: THREE.LinearFilter,
+			stencilBuffer: true, 
+				};
+    */ 
+     /*   const size = renderer.getDrawingBufferSize( new THREE.Vector2() );
+       this.renderTarget = new THREE.WebGLMultisampleRenderTarget( size.width, size.height, parameters );
+       const context = renderer.getContext();
+       //const maxMultisampling = context.getParameter(context.MAX_SAMPLES)
+      // this.renderTarget.samples=8;
+      this.renderTarget.samples =  Math.min(8, context.getParameter(context.MAX_SAMPLES));
+       this.renderTarget.toScreen = true;
+      
+       this.renderTarget.texture.encoding = THREE.sRGBEncoding;
+      
+     
+      this.renderTarget.texture.type = THREE.UnsignedByteType;
+       this.renderTarget.texture.format = THREE.RGBFormat;
+
+       console.error(this.renderTarget)
+       //this.renderTarget.texture.generateMipmaps = false;
+       renderer.setRenderTarget(this.renderTarget)
+       */
         if (this.camera && !this.hasWebXR) { renderer.xr.setPoseTarget(this.camera.el.object3D); }
         this.addEventListener('camera-set-active', function () 
         {
@@ -861,6 +898,9 @@ module.exports.AScene = registerElement('a-scene', {
           savedBackground = this.object3D.background;
           this.object3D.background = null;
         }
+      //renderer.setRenderTarget(this.renderTarget);
+      // renderer.clear();
+      
         renderer.render(this.object3D, this.camera);
         if (savedBackground) {
           this.object3D.background = savedBackground;
@@ -931,16 +971,24 @@ function getMaxSize (maxSize, isVR) {
 }
 
 function requestFullscreen (canvas) {
-  var requestFullscreen =
+ /* var requestFullscreen =
     canvas.requestFullscreen ||
     canvas.webkitRequestFullscreen ||
     canvas.mozRequestFullScreen ||  // The capitalized `S` is not a typo.
     canvas.msRequestFullscreen;
   // Hide navigation buttons on Android.
   requestFullscreen.apply(canvas, [{navigationUI: 'hide'}]);
+
+*/
+  
+  document.documentElement.requestFullscreen({
+    navigationUI: "hide"
+  });
 }
 
 function exitFullscreen () {
+  console.error("exit fullscreen")
+  document.exitFullscreen();
   var fullscreenEl =
     document.fullscreenElement ||
     document.webkitFullscreenElement ||
@@ -953,6 +1001,9 @@ function exitFullscreen () {
   } else if (document.webkitExitFullscreen) {
     document.webkitExitFullscreen();
   }
+
+
+  
 }
 
 function setupCanvas (sceneEl) {
