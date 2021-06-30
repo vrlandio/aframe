@@ -583,9 +583,11 @@ module.exports.AScene = registerElement('a-scene', {
 
         // Notify renderer of size change.
         this.renderer.setSize(size.width, size.height, false);
+        if(this.useMultisampleRenderTarget) {
+      const sizeTarget = this.renderer.getDrawingBufferSize(new THREE.Vector2());
+       this.renderTarget.setSize(sizeTarget.width, sizeTarget.height);
+        }
 
-        //const sizeTarget = this.renderer.getDrawingBufferSize(new THREE.Vector2());
-       // this.renderTarget.setSize(sizeTarget.width, sizeTarget.height);
         this.emit('rendererresize', null, false);
       },
       writable: true
@@ -631,80 +633,7 @@ module.exports.AScene = registerElement('a-scene', {
             rendererConfig.alpha = rendererAttr.alpha === 'true';
           }
 
-          if (rendererAttr.webgl2 && rendererAttr.webgl2 === 'true') {
-            const context = this.canvas.getContext('webgl2', {
-              alpha: rendererConfig.alpha,
-              depth: true,
-              stencil: true,
-              antialias: rendererConfig.antialias,
-              premultipliedAlpha: true,
-              preserveDrawingBuffer: false,
-              powerPreference: 'high-performance',
-              xrCompatible: true,
-              logarithmicDepthBuffer: rendererConfig.logarithmicDepthBuffer
-            });
-
-            if (context) {
-              console.log('Using WebGL 2.0 context.');
-              rendererConfig.context = context;
-
-             
-              var versionRegex = /^\s*#version\s+300\s+es\s*\n/;
-
-              for (var shaderName in shaders) {
-                var shader = shaders[shaderName];
-
-                var shaderProto = shader.Shader.prototype;
-
-                if (!shaderProto.raw) {
-                  continue;
-                }
-
-                var vertexShader = shaderProto.vertexShader;
-                var fragmentShader = shaderProto.fragmentShader;
-
-                var isGLSL3ShaderMaterial = false;
-
-                if (vertexShader.match(versionRegex) !== null && fragmentShader.match(versionRegex) !== null) {
-                  isGLSL3ShaderMaterial = true;
-
-                  vertexShader = vertexShader.replace(versionRegex, '');
-                  fragmentShader = fragmentShader.replace(versionRegex, '');
-                }
-
-                // GLSL 3.0 conversion
-                const prefixVertex = [
-                  '#version 300 es\n',
-                  '#define attribute in',
-                  '#define varying out',
-                  '#define texture2D texture'
-                ].join('\n') + '\n';
-
-                const prefixFragment = [
-                  '#version 300 es\n',
-                  '#define varying in',
-                  isGLSL3ShaderMaterial ? '' : 'out highp vec4 pc_fragColor;',
-                  isGLSL3ShaderMaterial ? '' : '#define gl_FragColor pc_fragColor',
-                  '#define gl_FragDepthEXT gl_FragDepth',
-                  '#define texture2D texture',
-                  '#define textureCube texture',
-                  '#define texture2DProj textureProj',
-                  '#define texture2DLodEXT textureLod',
-                  '#define texture2DProjLodEXT textureProjLod',
-                  '#define textureCubeLodEXT textureLod',
-                  '#define texture2DGradEXT textureGrad',
-                  '#define texture2DProjGradEXT textureProjGrad',
-                  '#define textureCubeGradEXT textureGrad'
-                ].join('\n') + '\n';
-
-                shaderProto.vertexShader = prefixVertex + vertexShader;
-                shaderProto.fragmentShader = prefixFragment + fragmentShader;
-              }
-            } else {
-              console.warn('No WebGL 2.0 context available. Falling back to WebGL 1.0');
-             
-            }
-          }
+       
 
           this.maxCanvasSize = {
             width: rendererAttr.maxCanvasWidth
@@ -715,30 +644,35 @@ module.exports.AScene = registerElement('a-scene', {
               : this.maxCanvasSize.height
           };
         }
+       if(rendererAttr.useMultisampleRenderTarget === 'true'){
+        this.useMultisampleRenderTarget =  'true';
+       }  
+       console.error(rendererAttr.useMultisampleRenderTarget)
+       console.error(this.useMultisampleRenderTarget)
+       renderer = this.renderer = new THREE.WebGLRenderer(rendererConfig);
+       renderer.setPixelRatio(window.devicePixelRatio);
+       renderer.sortObjects = false;
 
-        renderer = this.renderer = new THREE.WebGLRenderer(rendererConfig);
-//        const width = window.innerWidth;
-//        const height = window.innerHeight;
-//        renderer.setSize(width, height);
-       
-        
-        renderer.setPixelRatio(window.devicePixelRatio);
-  /*      renderer.outputEncoding = THREE.sRGBEncoding;
-        renderer.autoClear = true;
-        renderer.sortObjects = false;
+        if (this.useMultisampleRenderTarget) {
+
+          console.error("useMultisampleRenderTarget")
+          renderer.outputEncoding = THREE.sRGBEncoding;
+          renderer.autoClear = true;
+
+    
         var parameters = {
 					format: THREE.RGBFormat,
 			minFilter: THREE.LinearFilter,
 			magFilter: THREE.LinearFilter,
 			stencilBuffer: true, 
 				};
-    */ 
-     /*   const size = renderer.getDrawingBufferSize( new THREE.Vector2() );
+     
+       const size = renderer.getDrawingBufferSize( new THREE.Vector2() );
        this.renderTarget = new THREE.WebGLMultisampleRenderTarget( size.width, size.height, parameters );
        const context = renderer.getContext();
        //const maxMultisampling = context.getParameter(context.MAX_SAMPLES)
       // this.renderTarget.samples=8;
-      this.renderTarget.samples =  Math.min(8, context.getParameter(context.MAX_SAMPLES));
+      this.renderTarget.samples = Math.min(8, context.getParameter(context.MAX_SAMPLES));
        this.renderTarget.toScreen = true;
       
        this.renderTarget.texture.encoding = THREE.sRGBEncoding;
@@ -747,16 +681,18 @@ module.exports.AScene = registerElement('a-scene', {
       this.renderTarget.texture.type = THREE.UnsignedByteType;
        this.renderTarget.texture.format = THREE.RGBFormat;
 
-       console.error(this.renderTarget)
+     
        //this.renderTarget.texture.generateMipmaps = false;
        renderer.setRenderTarget(this.renderTarget)
-       */
-        if (this.camera && !this.hasWebXR) { renderer.xr.setPoseTarget(this.camera.el.object3D); }
+      }
+    
+    /*   if (this.camera && !this.hasWebXR) { renderer.xr.setPoseTarget(this.camera.el.object3D); }
         this.addEventListener('camera-set-active', function () 
         {
           if (!this.hasWebXR)
           renderer.xr.setPoseTarget(self.camera.el.object3D);
         });
+     */   
       
         loadingScreen.setup(this, getCanvasSize);
       },
@@ -898,9 +834,10 @@ module.exports.AScene = registerElement('a-scene', {
           savedBackground = this.object3D.background;
           this.object3D.background = null;
         }
-      //renderer.setRenderTarget(this.renderTarget);
-      // renderer.clear();
-      
+
+        if(this.useMultisampleRenderTarget)
+      renderer.setRenderTarget(this.renderTarget);
+   
         renderer.render(this.object3D, this.camera);
         if (savedBackground) {
           this.object3D.background = savedBackground;
