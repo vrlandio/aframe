@@ -644,11 +644,13 @@ module.exports.AScene = registerElement('a-scene', {
               : this.maxCanvasSize.height
           };
         }
-       if(rendererAttr.useMultisampleRenderTarget === 'true'){
-        this.useMultisampleRenderTarget =  'true';
+
+        console.error(rendererAttr.useMultisampleRenderTarget)
+       console.error(this.useMultisampleRenderTarget) 
+       if(rendererAttr.useMultisampleRenderTarget >=0 ){
+        this.useMultisampleRenderTarget =  rendererAttr.useMultisampleRenderTarget
        }  
-       console.error(rendererAttr.useMultisampleRenderTarget)
-       console.error(this.useMultisampleRenderTarget)
+      
        renderer = this.renderer = new THREE.WebGLRenderer(rendererConfig);
        renderer.setPixelRatio(window.devicePixelRatio);
        renderer.sortObjects = false;
@@ -672,8 +674,8 @@ module.exports.AScene = registerElement('a-scene', {
        const context = renderer.getContext();
        //const maxMultisampling = context.getParameter(context.MAX_SAMPLES)
       // this.renderTarget.samples=8;
-      this.renderTarget.samples = Math.min(8, context.getParameter(context.MAX_SAMPLES));
-       this.renderTarget.toScreen = true;
+      this.renderTarget.samples = Math.min(  this.useMultisampleRenderTarget , context.getParameter(context.MAX_SAMPLES));
+      this.renderTarget.toScreen = true;
       
        this.renderTarget.texture.encoding = THREE.sRGBEncoding;
       
