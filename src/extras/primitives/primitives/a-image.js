@@ -10,7 +10,7 @@ registerPrimitive('a-image', utils.extendDeep({}, getMeshMixin(), {
     material: {
       color: '#FFF',
       shader: 'flat',
-      side: 'double',
+      side: 'front',
       transparent: true
     }
   },
